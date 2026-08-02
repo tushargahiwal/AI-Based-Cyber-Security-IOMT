@@ -1,0 +1,62 @@
+# ============================================================================
+# IoMT IDS — Backend / AI-core dependencies
+# Source: docs/IoMT_Attack_Detection_Build_Document.pdf, Section 5.1
+# ============================================================================
+
+# --- Web framework / server ---
+fastapi>=0.110
+uvicorn[standard]>=0.29
+gunicorn>=22.0
+python-multipart>=0.0.9
+websockets>=12.0
+
+# --- Database / ORM ---
+sqlalchemy>=2.0
+alembic>=1.13
+pymysql>=1.1
+cryptography>=42.0
+
+# --- Cache / streaming ---
+redis>=5.0
+
+# --- Auth ---
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+bcrypt>=4.1
+
+# --- Config / validation ---
+pydantic>=2.6
+pydantic-settings>=2.2
+python-dotenv>=1.0
+
+# --- Classical ML ---
+scikit-learn>=1.4
+xgboost>=2.0
+lightgbm>=4.3
+imbalanced-learn>=0.12
+
+# --- Data handling ---
+pandas>=2.2
+numpy>=1.26
+
+# --- Explainability ---
+shap>=0.45
+lime>=0.2
+
+# --- Visualisation (analysis / report plots) ---
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Packet capture / flow features ---
+scapy>=2.5
+
+# --- MQTT ---
+paho-mqtt>=2.0
+
+# --- Testing ---
+pytest>=8.0
+pytest-asyncio>=0.23
+httpx>=0.27
+
+# --- Deep learning ---
+tensorflow>=2.15

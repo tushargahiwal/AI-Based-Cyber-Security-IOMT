@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# Env / secrets
+.env
+
+# Node
+node_modules/
+dist/
+
+# ML artefacts / data
+backend/models/*.pkl
+backend/models/*.keras
+backend/models/*.h5
+data/raw/
+data/interim/
+data/processed/
+
+# Logs
+*.log
+database/mysqld_start.log
+
+# OS
+.DS_Store
+Thumbs.db
