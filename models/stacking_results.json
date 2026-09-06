@@ -1,0 +1,95 @@
+{
+  "meta_features": [
+    "rf_probability",
+    "xgb_probability",
+    "autoencoder_error",
+    "isolation_forest_score",
+    "one_class_svm_score"
+  ],
+  "meta_learner_weights": {
+    "rf_probability": -0.7917495162650203,
+    "xgb_probability": 9.041687115244857,
+    "autoencoder_error": 0.6907800712495447,
+    "isolation_forest_score": 1.499610130031138,
+    "one_class_svm_score": 0.027145741172435865
+  },
+  "meta_learner_intercept": -3.408271638493218,
+  "protocol": "base models fitted on train; meta-learner fitted on validation predictions; test used once",
+  "xgb_train_seconds": 0.6768008000217378,
+  "meta_train_seconds": 0.019082200014963746,
+  "test": {
+    "random_forest_M1": {
+      "accuracy": 0.9309640522875817,
+      "precision": 0.6916666666666667,
+      "recall": 0.8110749185667753,
+      "f1": 0.7466266866566716,
+      "roc_auc": 0.950528460170367,
+      "false_positive_rate": 0.05184493227463802,
+      "confusion_matrix": [
+        [
+          2030,
+          111
+        ],
+        [
+          58,
+          249
+        ]
+      ]
+    },
+    "xgboost_M2": {
+      "accuracy": 0.9722222222222222,
+      "precision": 0.8610271903323263,
+      "recall": 0.9283387622149837,
+      "f1": 0.8934169278996865,
+      "roc_auc": 0.9916505270909055,
+      "false_positive_rate": 0.02148528724894909,
+      "confusion_matrix": [
+        [
+          2095,
+          46
+        ],
+        [
+          22,
+          285
+        ]
+      ]
+    },
+    "stacking_M10": {
+      "accuracy": 0.9624183006535948,
+      "precision": 0.7929155313351499,
+      "recall": 0.9478827361563518,
+      "f1": 0.8635014836795252,
+      "roc_auc": 0.9909993655739425,
+      "false_positive_rate": 0.03549743110695937,
+      "confusion_matrix": [
+        [
+          2065,
+          76
+        ],
+        [
+          16,
+          291
+        ]
+      ],
+      "meta_only_inference_ms_per_flow": 0.0014284998178482056
+    },
+    "stacking_supervised_only": {
+      "accuracy": 0.9624183006535948,
+      "precision": 0.7913279132791328,
+      "recall": 0.9511400651465798,
+      "f1": 0.863905325443787,
+      "roc_auc": 0.9923518949865128,
+      "false_positive_rate": 0.03596450256889304,
+      "confusion_matrix": [
+        [
+          2064,
+          77
+        ],
+        [
+          15,
+          292
+        ]
+      ]
+    }
+  }
+}

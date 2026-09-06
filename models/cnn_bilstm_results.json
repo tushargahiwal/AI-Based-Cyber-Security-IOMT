@@ -1,0 +1,68 @@
+{
+  "window": 10,
+  "classes": [
+    "normal",
+    "Data Alteration",
+    "Spoofing"
+  ],
+  "split": "contiguous blocks 70/15/15 with a WINDOW-1 gap at each boundary",
+  "label_rule": "the window takes the label of its LAST flow",
+  "train_seconds": 18.67573900008574,
+  "epochs_run": 9,
+  "macro_f1": 0.7943456452348382,
+  "classification_report": {
+    "normal": {
+      "precision": 0.9831029185867896,
+      "recall": 0.9026798307475318,
+      "f1-score": 0.9411764705882353,
+      "support": 2127.0
+    },
+    "Data Alteration": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 175.0
+    },
+    "Spoofing": {
+      "precision": 0.31456953642384106,
+      "recall": 0.7421875,
+      "f1-score": 0.4418604651162791,
+      "support": 128.0
+    },
+    "accuracy": 0.9012345679012346,
+    "macro avg": {
+      "precision": 0.7658908183368768,
+      "recall": 0.8816224435825105,
+      "f1-score": 0.7943456452348382,
+      "support": 2430.0
+    },
+    "weighted avg": {
+      "precision": 0.94910485946352,
+      "recall": 0.9012345679012346,
+      "f1-score": 0.9191113137761564,
+      "support": 2430.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      1920,
+      0,
+      207
+    ],
+    [
+      0,
+      175,
+      0
+    ],
+    [
+      33,
+      0,
+      95
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "normal",
+    "Data Alteration",
+    "Spoofing"
+  ]
+}

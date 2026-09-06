@@ -1,7 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* One place to shift the whole palette. The page is a faint blue-grey rather
+     than pure white so white cards read as raised surfaces against it; the
+     sidebar is a deep slate that anchors the layout without going to black. */
+  --app-bg: #f4f6fb;
+  --app-ink: #0f172a;
+  --sidebar-bg: #16213a;
+  --sidebar-bg-soft: #1e2b47;
+  --sidebar-ink: #cbd5e1;
+  --sidebar-ink-dim: #7c8aa5;
+  --sidebar-active: #38bdf8;
 }
 
 html, body, #root {
@@ -10,12 +21,14 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: #0b0e14;
-  color: #e5e7eb;
+  background: var(--app-bg);
+  color: var(--app-ink);
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Scrollbars are styled per-surface: a dark thumb on the pale page, a light one
+   inside the sidebar, or they disappear against their own background. */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -24,24 +37,32 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262b36;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #333a48;
+  background: #94a3b8;
 }
 
-/* Severity / verdict color tokens shared across the app */
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #33415580;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Severity / verdict color tokens shared across the app. Darkened from the
+   dark-theme values so they hold their contrast on a pale background. */
 :root {
   --sev-info: #64748b;
-  --sev-low: #22c55e;
-  --sev-medium: #eab308;
-  --sev-high: #f97316;
-  --sev-critical: #ef4444;
+  --sev-low: #15803d;
+  --sev-medium: #a16207;
+  --sev-high: #c2410c;
+  --sev-critical: #b91c1c;
 
-  --verdict-benign: #22c55e;
-  --verdict-known_attack: #ef4444;
-  --verdict-zero_day_suspect: #a855f7;
-  --verdict-data_integrity: #f43f5e;
-  --verdict-uncertain: #64748b;
+  --verdict-benign: #15803d;
+  --verdict-known_attack: #b91c1c;
+  --verdict-zero_day_suspect: #7e22ce;
+  --verdict-data_integrity: #be123c;
+  --verdict-uncertain: #475569;
 }

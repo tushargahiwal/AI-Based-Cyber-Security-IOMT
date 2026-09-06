@@ -1,0 +1,16 @@
+{
+  "threshold": 0.3375664775103383,
+  "percentile": 97.5,
+  "test_detection_rate": 0.5960912052117264,
+  "test_false_positive_rate": 0.025221858944418495,
+  "confusion_matrix": [
+    [
+      2087,
+      54
+    ],
+    [
+      124,
+      183
+    ]
+  ]
+}

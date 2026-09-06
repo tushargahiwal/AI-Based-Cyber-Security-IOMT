@@ -1,10 +1,10 @@
-export default function ErrorBanner({ error, label = 'endpoint' }) {
+import { extractErrorMessage } from '../api/errors'
+
+export default function ErrorBanner({ error }) {
   if (!error) return null
-  const status = error?.response?.status
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-      Could not reach the {label}
-      {status ? ` (HTTP ${status})` : ''}. The backend route may not be wired up yet.
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-700">
+      {extractErrorMessage(error, 'Something went wrong.')}
     </div>
   )
 }

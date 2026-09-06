@@ -1,0 +1,121 @@
+{
+  "engineered_available": [
+    "interarrival_regularity",
+    "vitals_physio_violation",
+    "vitals_delta_rate",
+    "device_profile_deviation",
+    "arp_binding_violation"
+  ],
+  "engineered_unavailable": {
+    "ttl_deviation": "WUSTL-EHMS-2020 carries no IP TTL column",
+    "payload_entropy": "the capture is flow statistics only, with no payload bytes",
+    "mqtt_connect_ratio": "no MQTT control-packet types in this capture",
+    "mqtt_pub_no_sub": "no MQTT topic information in this capture",
+    "night_hour_flag": "rows carry no wall-clock timestamp, only capture order"
+  },
+  "engineered_used": [
+    "interarrival_regularity",
+    "vitals_physio_violation",
+    "vitals_delta_rate",
+    "device_profile_deviation"
+  ],
+  "engineered_dropped_constant": [
+    "arp_binding_violation"
+  ],
+  "results": {
+    "raw_flow_only": {
+      "random_forest": {
+        "accuracy": 0.9444444444444444,
+        "precision": 0.9090909090909091,
+        "recall": 0.6188925081433225,
+        "f1": 0.7364341085271318,
+        "roc_auc": 0.9361648716618464,
+        "false_positive_rate": 0.008874357776739842,
+        "confusion_matrix": [
+          [
+            2122,
+            19
+          ],
+          [
+            117,
+            190
+          ]
+        ],
+        "train_seconds": 0.7488452000543475
+      },
+      "xgboost": {
+        "accuracy": 0.9758986928104575,
+        "precision": 0.9661654135338346,
+        "recall": 0.8371335504885994,
+        "f1": 0.8970331588132635,
+        "roc_auc": 0.992208882877647,
+        "false_positive_rate": 0.004203643157403083,
+        "confusion_matrix": [
+          [
+            2132,
+            9
+          ],
+          [
+            50,
+            257
+          ]
+        ],
+        "train_seconds": 0.4659063001163304
+      }
+    },
+    "raw_plus_engineered": {
+      "random_forest": {
+        "accuracy": 0.9464869281045751,
+        "precision": 0.9313725490196079,
+        "recall": 0.6188925081433225,
+        "f1": 0.7436399217221135,
+        "roc_auc": 0.9327827874277143,
+        "false_positive_rate": 0.006539000467071462,
+        "confusion_matrix": [
+          [
+            2127,
+            14
+          ],
+          [
+            117,
+            190
+          ]
+        ],
+        "train_seconds": 0.6619682998862118,
+        "engineered_importance_share": 0.17899532979858945,
+        "engineered_ranks": {
+          "interarrival_regularity": 5,
+          "vitals_physio_violation": 25,
+          "vitals_delta_rate": 20,
+          "device_profile_deviation": 1
+        }
+      },
+      "xgboost": {
+        "accuracy": 0.9734477124183006,
+        "precision": 0.97265625,
+        "recall": 0.8110749185667753,
+        "f1": 0.8845470692717584,
+        "roc_auc": 0.9880600103151287,
+        "false_positive_rate": 0.003269500233535731,
+        "confusion_matrix": [
+          [
+            2134,
+            7
+          ],
+          [
+            58,
+            249
+          ]
+        ],
+        "train_seconds": 0.47344829980283976,
+        "engineered_importance_share": 0.02727612294256687,
+        "engineered_ranks": {
+          "interarrival_regularity": 18,
+          "vitals_physio_violation": 48,
+          "vitals_delta_rate": 23,
+          "device_profile_deviation": 3
+        }
+      }
+    }
+  }
+}

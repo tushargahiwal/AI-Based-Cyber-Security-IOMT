@@ -1,0 +1,21 @@
+{
+  "vitals_order": [
+    "Heart_rate",
+    "SpO2",
+    "SYS",
+    "DIA",
+    "Temp",
+    "Resp_Rate"
+  ],
+  "window": 30,
+  "residual_std": [
+    0.34441292998027007,
+    0.9181904781570461,
+    0.11980995485886219,
+    0.09340623747867147,
+    0.13946401439529155,
+    0.2854893341221868
+  ],
+  "benign_test_false_positive_rate": 0.06751824817518248,
+  "attack_boundary_detection_rate": 0.25
+}

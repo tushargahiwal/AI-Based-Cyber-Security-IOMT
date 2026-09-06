@@ -11,9 +11,8 @@ export default defineConfig({
       '/api/v1': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://localhost:8000',
+        // The live monitor's feed is a WebSocket on this same prefix; without
+        // this the upgrade request is proxied as plain HTTP and fails.
         ws: true,
       },
     },

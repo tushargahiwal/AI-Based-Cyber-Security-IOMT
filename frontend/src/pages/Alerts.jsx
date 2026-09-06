@@ -1,258 +1,146 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useApi from '../hooks/useApi'
-import {
-  listAlerts,
-  getAlert,
-  acknowledgeAlert,
-  resolveAlert,
-  markFalsePositive,
-} from '../api/client'
-import Card from '../components/Card'
+import { listAlerts, ALERT_STATUSES, ALERT_SEVERITIES } from '../api/client'
 import ErrorBanner from '../components/ErrorBanner'
-import SeverityBadge from '../components/SeverityBadge'
-import VerdictBadge from '../components/VerdictBadge'
+import SelectField from '../components/SelectField'
+import { BellIcon } from '../components/icons'
 
-const STATUS_OPTIONS = ['new', 'acknowledged', 'investigating', 'resolved', 'false_positive']
-const SEVERITY_OPTIONS = ['info', 'low', 'medium', 'high', 'critical']
+const PAGE_SIZE = 20
+
+const STATUS_STYLES = {
+  new: 'bg-red-50 text-red-700 ring-red-200',
+  acknowledged: 'bg-amber-50 text-amber-700 ring-amber-200',
+  investigating: 'bg-sky-50 text-sky-700 ring-sky-200',
+  resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  false_positive: 'bg-slate-100 text-slate-600 ring-slate-200',
+}
+
+const SEVERITY_STYLES = {
+  info: 'text-slate-600',
+  low: 'text-sky-700',
+  medium: 'text-amber-700',
+  high: 'text-orange-700',
+  critical: 'text-red-700',
+}
 
 export default function Alerts() {
-  const [filters, setFilters] = useState({ status: '', severity: '' })
-  const [selectedId, setSelectedId] = useState(null)
+  const navigate = useNavigate()
+  const [page, setPage] = useState(1)
+  const [status, setStatus] = useState('')
+  const [severity, setSeverity] = useState('')
 
-  const alerts = useApi(() => listAlerts(cleanParams(filters)), [filters.status, filters.severity])
-  const rows = alerts.data?.items || alerts.data || []
+  const { data, loading, error } = useApi(
+    () => listAlerts({ page, size: PAGE_SIZE, status: status || undefined, severity: severity || undefined }),
+    [page, status, severity]
+  )
+
+  const items = data?.items || []
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-100">Alerts Console</h1>
-        <p className="text-sm text-slate-500">Triage, acknowledge and resolve detections that need a human.</p>
-      </div>
-
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          label="Status"
-          value={filters.status}
-          onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
-          options={STATUS_OPTIONS}
-        />
-        <Select
-          label="Severity"
-          value={filters.severity}
-          onChange={(v) => setFilters((f) => ({ ...f, severity: v }))}
-          options={SEVERITY_OPTIONS}
-        />
+        <SelectField value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="min-w-[10rem]">
+          <option value="" className="bg-white">All statuses</option>
+          {ALERT_STATUSES.map((s) => <option key={s} value={s} className="bg-white">{s.replace(/_/g, ' ')}</option>)}
+        </SelectField>
+        <SelectField value={severity} onChange={(e) => { setSeverity(e.target.value); setPage(1) }} className="min-w-[9rem]">
+          <option value="" className="bg-white">All severities</option>
+          {ALERT_SEVERITIES.map((s) => <option key={s} value={s} className="bg-white capitalize">{s}</option>)}
+        </SelectField>
       </div>
 
-      <Card>
-        <ErrorBanner error={alerts.error} label="alerts" />
+      <ErrorBanner error={error} />
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-500">
-                <th className="pb-2 pr-4">Alert</th>
-                <th className="pb-2 pr-4">Device</th>
-                <th className="pb-2 pr-4">Verdict</th>
-                <th className="pb-2 pr-4">Severity</th>
-                <th className="pb-2 pr-4">Risk</th>
-                <th className="pb-2 pr-4">Status</th>
-                <th className="pb-2">First seen</th>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Risk</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Alert</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Severity</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Occurrences</th>
+                <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">Last seen</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {rows.length === 0 && !alerts.loading && (
+            <tbody className="divide-y divide-slate-200">
+              {!loading && items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No alerts match these filters.
+                  <td colSpan={6} className="px-5 py-10 text-center text-slate-500">
+                    No alerts.
                   </td>
                 </tr>
               )}
-              {rows.map((a) => (
+              {items.map((a) => (
                 <tr
                   key={a.id}
-                  onClick={() => setSelectedId(a.id)}
-                  className="cursor-pointer text-slate-300 hover:bg-white/5"
+                  onClick={() => navigate(`/alerts/${a.id}`)}
+                  className="cursor-pointer transition-colors hover:bg-slate-100"
                 >
-                  <td className="py-2 pr-4">
-                    <p className="font-medium text-slate-200">{a.title}</p>
-                    <p className="text-xs text-slate-500">{a.alert_uid}</p>
+                  <td className="px-5 py-3.5">
+                    <span className="font-mono text-sm font-semibold text-slate-800">
+                      {a.risk_score != null ? a.risk_score.toFixed(0) : '—'}
+                    </span>
                   </td>
-                  <td className="py-2 pr-4 text-slate-400">{a.device_id ?? '—'}</td>
-                  <td className="py-2 pr-4">
-                    <VerdictBadge verdict={a.attack_type?.family?.toLowerCase() || 'known_attack'} />
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
+                        <BellIcon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-800">{a.title}</p>
+                        <p className="font-mono text-[11px] text-slate-500">{a.alert_uid}{a.device_uid ? ` · ${a.device_uid}` : ''}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="py-2 pr-4">
-                    <SeverityBadge severity={a.severity} />
+                  <td className={`px-5 py-3.5 capitalize ${SEVERITY_STYLES[a.severity] || 'text-slate-600'}`}>
+                    {a.severity}
                   </td>
-                  <td className="py-2 pr-4 text-slate-400">{a.risk_score ?? '—'}</td>
-                  <td className="py-2 pr-4 text-slate-400">{a.status}</td>
-                  <td className="py-2 text-slate-500">{formatTime(a.first_seen_at)}</td>
+                  <td className="px-5 py-3.5">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs capitalize ring-1 ring-inset ${STATUS_STYLES[a.status] || ''}`}
+                    >
+                      {a.status.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-slate-600">{a.occurrence_count}</td>
+                  <td className="px-5 py-3.5 text-slate-600">
+                    {a.last_seen_at ? new Date(a.last_seen_at).toLocaleString() : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </Card>
 
-      {selectedId && (
-        <AlertDrawer alertId={selectedId} onClose={() => setSelectedId(null)} onChanged={alerts.reload} />
-      )}
-    </div>
-  )
-}
-
-function AlertDrawer({ alertId, onClose, onChanged }) {
-  const detail = useApi(() => getAlert(alertId), [alertId])
-  const a = detail.data || {}
-  const [busy, setBusy] = useState(false)
-
-  const runAction = async (fn) => {
-    setBusy(true)
-    try {
-      await fn(alertId)
-      onChanged?.()
-      detail.reload()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/50" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-lg overflow-y-auto border-l border-white/10 bg-[#0d1017] p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-100">{a.title || `Alert #${alertId}`}</h2>
-            <p className="text-xs text-slate-500">{a.alert_uid}</p>
-          </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200">
-            ✕
-          </button>
-        </div>
-
-        <ErrorBanner error={detail.error} label="alert detail" />
-
-        {!detail.loading && !detail.error && (
-          <div className="space-y-5">
-            <div className="flex flex-wrap gap-2">
-              {a.severity && <SeverityBadge severity={a.severity} />}
-              {a.status && (
-                <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-slate-300 ring-1 ring-inset ring-white/10">
-                  {a.status}
-                </span>
-              )}
-              {a.risk_score != null && (
-                <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-slate-300 ring-1 ring-inset ring-white/10">
-                  risk {a.risk_score}
-                </span>
-              )}
+        {total > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3.5 text-xs text-slate-500">
+            <span>
+              {total} alert{total === 1 ? '' : 's'} · page {page} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
             </div>
-
-            <p className="text-sm text-slate-400">{a.description || 'No description provided.'}</p>
-
-            {a.explanation && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Why the system decided this (SHAP)
-                </h3>
-                <p className="mb-2 text-sm text-slate-300">{a.explanation.narrative}</p>
-                <ul className="space-y-1.5">
-                  {(a.explanation.top_features || []).map((f, i) => (
-                    <li key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-1.5 text-xs">
-                      <span className="text-slate-300">{f.feature}</span>
-                      <span className="text-slate-500">
-                        {f.value} · normal {f.normal_range || '—'}
-                      </span>
-                      <span className={f.shap >= 0 ? 'text-red-300' : 'text-emerald-300'}>
-                        {f.shap >= 0 ? '+' : ''}
-                        {f.shap}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {a.recommendations?.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Recommended action (advisory only)
-                </h3>
-                <ul className="space-y-1.5 text-sm text-slate-300">
-                  {a.recommendations.map((r, i) => (
-                    <li key={i} className="rounded-lg bg-white/5 px-3 py-2">
-                      {r.recommendation}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <section className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
-              <ActionButton disabled={busy} onClick={() => runAction(acknowledgeAlert)}>
-                Acknowledge
-              </ActionButton>
-              <ActionButton disabled={busy} onClick={() => runAction((id) => resolveAlert(id, 'Resolved from console'))}>
-                Resolve
-              </ActionButton>
-              <ActionButton disabled={busy} onClick={() => runAction(markFalsePositive)} variant="ghost">
-                Mark false positive
-              </ActionButton>
-            </section>
           </div>
         )}
       </div>
     </div>
   )
-}
-
-function ActionButton({ children, variant = 'solid', ...props }) {
-  const styles =
-    variant === 'solid'
-      ? 'bg-sky-500/15 text-sky-300 ring-1 ring-inset ring-sky-500/30 hover:bg-sky-500/25'
-      : 'bg-white/5 text-slate-400 ring-1 ring-inset ring-white/10 hover:bg-white/10'
-  return (
-    <button
-      {...props}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${styles}`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Select({ label, value, onChange, options }) {
-  return (
-    <label className="flex items-center gap-2 text-xs text-slate-400">
-      {label}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-white/10 bg-[#0d1017] px-2 py-1.5 text-xs text-slate-200 focus:border-sky-500/50 focus:outline-none"
-      >
-        <option value="">All</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-function cleanParams(obj) {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v))
-}
-
-function formatTime(t) {
-  if (!t) return '—'
-  try {
-    return new Date(t).toLocaleString()
-  } catch {
-    return t
-  }
 }

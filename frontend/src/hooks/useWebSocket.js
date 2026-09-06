@@ -1,73 +1,81 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getAccessToken } from '../api/tokens'
 
-function resolveWsUrl(path) {
-  const explicit = import.meta.env.VITE_WS_BASE_URL
-  if (explicit) return `${explicit}${path}`
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}${path}`
+// Vite proxies /api in dev; in production the socket lives on the same origin.
+function socketUrl(token) {
+  const base = import.meta.env.VITE_WS_URL
+  if (base) return `${base}?token=${encodeURIComponent(token)}`
+  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${scheme}://${window.location.host}/api/v1/ws?token=${encodeURIComponent(token)}`
 }
 
-/**
- * Subscribes to a backend WebSocket feed (e.g. /ws/alerts, /ws/traffic) and
- * keeps a rolling buffer of the most recent messages, with auto-reconnect.
- */
-export default function useWebSocket(path, { maxItems = 200, enabled = true } = {}) {
-  const [messages, setMessages] = useState([])
-  const [status, setStatus] = useState('connecting')
-  const socketRef = useRef(null)
-  const retryRef = useRef(0)
-  const timerRef = useRef(null)
+const RECONNECT_MS = 3000
 
-  const clear = useCallback(() => setMessages([]), [])
+/**
+ * Subscribes to the live detection/alert feed.
+ *
+ * The server sends `{type, data}` frames and never replays history, so this
+ * keeps only the most recent `limit` events — the live view is a tail, and the
+ * full record is always available over REST.
+ */
+export default function useWebSocket({ enabled = true, limit = 100 } = {}) {
+  const [events, setEvents] = useState([])
+  const [status, setStatus] = useState('idle')
+  const socketRef = useRef(null)
+  const retryRef = useRef(null)
+  // Kept in a ref so an unmount can stop the reconnect loop without the effect
+  // depending on state that changes on every message.
+  const closedRef = useRef(false)
+
+  const clear = useCallback(() => setEvents([]), [])
 
   useEffect(() => {
-    if (!enabled) return undefined
-    let cancelled = false
+    if (!enabled) {
+      setStatus('idle')
+      return undefined
+    }
+    const token = getAccessToken()
+    if (!token) {
+      setStatus('unauthenticated')
+      return undefined
+    }
+
+    closedRef.current = false
 
     const connect = () => {
-      const token = localStorage.getItem('access_token')
-      const url = resolveWsUrl(path) + (token ? `?token=${token}` : '')
-      const socket = new WebSocket(url)
-      socketRef.current = socket
+      if (closedRef.current) return
       setStatus('connecting')
+      const ws = new WebSocket(socketUrl(token))
+      socketRef.current = ws
 
-      socket.onopen = () => {
-        if (cancelled) return
-        retryRef.current = 0
-        setStatus('open')
-      }
-
-      socket.onmessage = (event) => {
-        if (cancelled) return
+      ws.onopen = () => setStatus('connected')
+      ws.onmessage = (e) => {
+        let parsed
         try {
-          const data = JSON.parse(event.data)
-          setMessages((prev) => [data, ...prev].slice(0, maxItems))
+          parsed = JSON.parse(e.data)
         } catch {
-          // ignore malformed frames
+          return // a frame we can't read is not worth tearing the feed down for
         }
+        setEvents((prev) => [{ ...parsed, receivedAt: Date.now() }, ...prev].slice(0, limit))
       }
-
-      socket.onclose = () => {
-        if (cancelled) return
-        setStatus('closed')
-        const delay = Math.min(1000 * 2 ** retryRef.current, 15000)
-        retryRef.current += 1
-        timerRef.current = setTimeout(connect, delay)
-      }
-
-      socket.onerror = () => {
-        socket.close()
+      ws.onerror = () => setStatus('error')
+      ws.onclose = () => {
+        socketRef.current = null
+        if (closedRef.current) return
+        setStatus('reconnecting')
+        retryRef.current = setTimeout(connect, RECONNECT_MS)
       }
     }
 
     connect()
 
     return () => {
-      cancelled = true
-      clearTimeout(timerRef.current)
+      closedRef.current = true
+      clearTimeout(retryRef.current)
       socketRef.current?.close()
+      socketRef.current = null
     }
-  }, [path, enabled, maxItems])
+  }, [enabled, limit])
 
-  return { messages, status, clear }
+  return { events, status, clear }
 }

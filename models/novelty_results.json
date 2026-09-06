@@ -1,0 +1,48 @@
+{
+  "isolation_forest_M5": {
+    "train_seconds": 0.5773793000262231,
+    "test": {
+      "threshold": 0.5962993019306522,
+      "threshold_percentile": 97.5,
+      "detection_rate": 0.501628664495114,
+      "precision": 0.7333333333333333,
+      "f1": 0.5957446808510638,
+      "false_positive_rate": 0.026156001868285848,
+      "roc_auc": 0.7219205613377414,
+      "confusion_matrix": [
+        [
+          2085,
+          56
+        ],
+        [
+          153,
+          154
+        ]
+      ],
+      "inference_ms_per_flow": 0.06482450058683753
+    }
+  },
+  "one_class_svm_M7": {
+    "train_seconds": 0.13045830000191927,
+    "test": {
+      "threshold": -13.84544436009823,
+      "threshold_percentile": 97.5,
+      "detection_rate": 0.5960912052117264,
+      "precision": 0.7787234042553192,
+      "f1": 0.6752767527675276,
+      "false_positive_rate": 0.024287716020551145,
+      "roc_auc": 0.7448237984320396,
+      "confusion_matrix": [
+        [
+          2089,
+          52
+        ],
+        [
+          124,
+          183
+        ]
+      ],
+      "inference_ms_per_flow": 0.032272000098600984
+    }
+  }
+}

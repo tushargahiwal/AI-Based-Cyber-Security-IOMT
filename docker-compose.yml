@@ -1,0 +1,80 @@
+# One command to bring the whole system up on a machine that has nothing but
+# Docker installed:
+#
+#     docker compose up --build
+#
+# then open http://localhost:8080. The database is created and seeded on first
+# start; models/ and data/ are mounted from the repository rather than copied
+# into the image, so retraining a model does not mean rebuilding anything.
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: iomt_ids
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-iomt}
+    # schema.sql runs automatically on an empty data directory. It does NOT
+    # re-run afterwards, so an existing volume keeps whatever is in it.
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      # --silent so a failed probe does not fill the log with password warnings.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_NAME: IoMT IDS Backend
+      ENV: ${ENV:-development}
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-iomt}@db:3306/iomt_ids?charset=utf8mb4
+      # Override this before showing anyone the deployment: tokens signed with a
+      # known default are tokens anyone can forge.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-to-a-random-secret}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    volumes:
+      # Read-only: the API loads these, the ml/ scripts write them, and nothing
+      # running in this container has any business changing them.
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Runs once after the schema exists, then exits. Keeps seeding out of the
+  # backend's startup path, where a failure would take the API down with it.
+  seed:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python seed.py
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-iomt}@db:3306/iomt_ids?charset=utf8mb4
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_data:

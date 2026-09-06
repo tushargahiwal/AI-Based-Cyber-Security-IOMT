@@ -1,0 +1,47 @@
+{
+  "protocol": "leave-one-attack-family-out",
+  "results": {
+    "Data Alteration": {
+      "training_rows_removed": 628,
+      "zero_day_flows": 153,
+      "random_forest_M1": {
+        "zero_day_detection_rate": 0.0,
+        "benign_false_positive_rate": 0.02008407286314806
+      },
+      "xgboost_M2": {
+        "zero_day_detection_rate": 0.0,
+        "benign_false_positive_rate": 0.004670714619336758
+      },
+      "isolation_forest_M5": {
+        "zero_day_detection_rate": 1.0,
+        "benign_false_positive_rate": 0.02475478748248482
+      },
+      "one_class_svm_M7": {
+        "zero_day_detection_rate": 1.0,
+        "benign_false_positive_rate": 0.030826716487622606
+      },
+      "stage3_uplift": 1.0
+    },
+    "Spoofing": {
+      "training_rows_removed": 804,
+      "zero_day_flows": 154,
+      "random_forest_M1": {
+        "zero_day_detection_rate": 0.0,
+        "benign_false_positive_rate": 0.0
+      },
+      "xgboost_M2": {
+        "zero_day_detection_rate": 0.0,
+        "benign_false_positive_rate": 0.0
+      },
+      "isolation_forest_M5": {
+        "zero_day_detection_rate": 0.006493506493506494,
+        "benign_false_positive_rate": 0.02475478748248482
+      },
+      "one_class_svm_M7": {
+        "zero_day_detection_rate": 0.19480519480519481,
+        "benign_false_positive_rate": 0.029892573563755253
+      },
+      "stage3_uplift": 0.19480519480519481
+    }
+  }
+}

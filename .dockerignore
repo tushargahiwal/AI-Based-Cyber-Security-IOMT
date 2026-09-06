@@ -1,0 +1,15 @@
+# Anything reinstalled or rebuilt inside the image, and anything large that the
+# build does not need — these dominate the build context otherwise.
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/dist/
+.git/
+notebooks/
+docs/
+# The processed splits and the raw capture are mounted at run time, not copied.
+data/processed/
+data/interim/
+*.log

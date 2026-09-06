@@ -1,156 +1,111 @@
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts'
+import { Link } from 'react-router-dom'
+import useCurrentUser from '../hooks/useCurrentUser'
 import useApi from '../hooks/useApi'
-import useWebSocket from '../hooks/useWebSocket'
-import {
-  getStatsOverview,
-  getAttackDistribution,
-  getTrafficTimeline,
-  listAlerts,
-} from '../api/client'
-import StatCard from '../components/StatCard'
+import { getStatsOverview } from '../api/client'
 import Card from '../components/Card'
 import ErrorBanner from '../components/ErrorBanner'
-import SeverityBadge from '../components/SeverityBadge'
-import VerdictBadge from '../components/VerdictBadge'
+import { ActivityIcon, MonitorIcon, CheckCircleIcon, AlertTriangleIcon, CpuIcon, BellIcon } from '../components/icons'
 
-const DONUT_COLORS = ['#38bdf8', '#f97316', '#ef4444', '#a855f7', '#eab308', '#22c55e']
-
-export default function Overview() {
-  const kpis = useApi(getStatsOverview, [])
-  const distribution = useApi(getAttackDistribution, [])
-  const timeline = useApi(getTrafficTimeline, [])
-  const recentAlerts = useApi(() => listAlerts({ page: 1, size: 10 }), [])
-  const { messages: liveAlerts } = useWebSocket('/ws/alerts', { maxItems: 10 })
-
-  const k = kpis.data || {}
-  const alerts = liveAlerts.length ? liveAlerts : recentAlerts.data?.items || recentAlerts.data || []
-
+function KpiCard({ icon: Icon, label, value, accent = 'text-slate-800' }) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-100">Overview</h1>
-        <p className="text-sm text-slate-500">Live posture across every IoMT device on the network.</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+        <Icon className="h-4 w-4" />
+        {label}
       </div>
-
-      <ErrorBanner error={kpis.error} label="stats overview" />
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Flows today" value={fmt(k.flows_today)} />
-        <StatCard label="Attacks today" value={fmt(k.attacks_today)} accent="text-red-300" />
-        <StatCard label="Active alerts" value={fmt(k.active_alerts)} accent="text-orange-300" />
-        <StatCard label="Devices online" value={fmt(k.devices_online)} accent="text-emerald-300" />
-        <StatCard label="Mean time to detect" value={k.mean_time_to_detect ? `${k.mean_time_to_detect}s` : '—'} />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Live traffic" className="lg:col-span-2">
-          <ErrorBanner error={timeline.error} label="traffic timeline" />
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeline.data?.points || timeline.data || []}>
-                <CartesianGrid stroke="#1f2430" strokeDasharray="4 4" />
-                <XAxis dataKey="t" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: '#0d1017', border: '1px solid #1f2430', fontSize: 12 }}
-                  labelStyle={{ color: '#94a3b8' }}
-                />
-                <Line type="monotone" dataKey="benign" stroke="#22c55e" dot={false} strokeWidth={2} />
-                <Line type="monotone" dataKey="malicious" stroke="#ef4444" dot={false} strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card title="Attack distribution">
-          <ErrorBanner error={distribution.error} label="attack distribution" />
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={distribution.data?.items || distribution.data || []}
-                  dataKey="count"
-                  nameKey="family"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                >
-                  {(distribution.data?.items || distribution.data || []).map((_, i) => (
-                    <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
-                <Tooltip contentStyle={{ background: '#0d1017', border: '1px solid #1f2430', fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      <Card title="Latest alerts">
-        <ErrorBanner error={recentAlerts.error} label="alerts" />
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-500">
-                <th className="pb-2 pr-4">Title</th>
-                <th className="pb-2 pr-4">Device</th>
-                <th className="pb-2 pr-4">Verdict</th>
-                <th className="pb-2 pr-4">Severity</th>
-                <th className="pb-2">Detected</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {alerts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-500">
-                    No alerts yet.
-                  </td>
-                </tr>
-              )}
-              {alerts.map((a) => (
-                <tr key={a.id || a.alert_uid} className="text-slate-300">
-                  <td className="py-2 pr-4">{a.title}</td>
-                  <td className="py-2 pr-4 text-slate-400">{a.device_id ?? a.device?.device_uid ?? '—'}</td>
-                  <td className="py-2 pr-4">
-                    <VerdictBadge verdict={a.final_verdict || a.verdict} />
-                  </td>
-                  <td className="py-2 pr-4">
-                    <SeverityBadge severity={a.severity} />
-                  </td>
-                  <td className="py-2 text-slate-500">{formatTime(a.first_seen_at || a.detected_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <p className={`mt-2 text-2xl font-semibold ${accent}`}>{value}</p>
     </div>
   )
 }
 
-function fmt(n) {
-  if (n === undefined || n === null) return '—'
-  return new Intl.NumberFormat().format(n)
-}
+export default function Overview() {
+  const { user } = useCurrentUser()
+  const { data: stats, loading, error } = useApi(getStatsOverview, [])
 
-function formatTime(t) {
-  if (!t) return '—'
-  try {
-    return new Date(t).toLocaleTimeString()
-  } catch {
-    return t
-  }
+  const verdictCounts = stats?.detections_by_verdict || {}
+  const attackCount = (verdictCounts.known_attack || 0) + (verdictCounts.zero_day_suspect || 0) + (verdictCounts.data_integrity || 0)
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-lg font-semibold text-slate-900">
+          {user ? `Welcome, ${user.full_name || user.username}` : 'Dashboard'}
+        </h1>
+        <p className="text-sm text-slate-500">You&apos;re signed in as {user?.role || 'a user'}.</p>
+      </div>
+
+      <ErrorBanner error={error} />
+
+      {stats && (
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <KpiCard icon={ActivityIcon} label="Total flows" value={stats.total_flows} />
+            <KpiCard icon={CheckCircleIcon} label="Total detections" value={stats.total_detections} />
+            <KpiCard
+              icon={AlertTriangleIcon}
+              label="Flagged attacks"
+              value={attackCount}
+              accent={attackCount > 0 ? 'text-red-700' : 'text-slate-800'}
+            />
+            <KpiCard
+              icon={BellIcon}
+              label="Active alerts"
+              value={stats.active_alerts}
+              accent={stats.critical_alerts > 0 ? 'text-red-700' : stats.active_alerts > 0 ? 'text-amber-700' : 'text-slate-800'}
+            />
+            <KpiCard icon={MonitorIcon} label="Devices online" value={`${stats.devices_online} / ${stats.devices_total}`} />
+          </div>
+
+          {stats.active_alerts > 0 && (
+            <Card title="Active alerts need attention">
+              <p className="text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">{stats.active_alerts}</span> open alert{stats.active_alerts === 1 ? '' : 's'}
+                {stats.critical_alerts > 0 && (
+                  <> — <span className="font-semibold text-red-700">{stats.critical_alerts} critical</span></>
+                )}
+              </p>
+              <Link to="/alerts" className="mt-3 inline-block text-sm text-sky-600 hover:text-sky-800">
+                Go to Alerts Console →
+              </Link>
+            </Card>
+          )}
+
+          <Card title="Detections by verdict">
+            {Object.keys(verdictCounts).length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No detections yet — submit a flow to <code className="text-slate-600">POST /api/v1/detect</code> to see results here.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(verdictCounts).map(([verdict, count]) => (
+                  <span
+                    key={verdict}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm capitalize text-slate-700"
+                  >
+                    {verdict.replace(/_/g, ' ')}: <span className="font-semibold text-slate-900">{count}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <Link to="/detections" className="mt-4 inline-block text-sm text-sky-600 hover:text-sky-800">
+              View all detections →
+            </Link>
+          </Card>
+
+          <Card title="Active Stage 1 model">
+            <div className="flex items-center gap-2 text-sm">
+              <CpuIcon className="h-4 w-4 text-slate-500" />
+              {stats.active_stage1_model ? (
+                <span className="font-mono text-slate-800">{stats.active_stage1_model}</span>
+              ) : (
+                <span className="text-slate-500">No active Stage 1 model registered.</span>
+              )}
+            </div>
+          </Card>
+        </>
+      )}
+
+      {loading && !stats && <p className="text-sm text-slate-500">Loading overview…</p>}
+    </div>
+  )
 }

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     env: str = "development"
     debug: bool = True
 
-    database_url: str = "mysql+pymysql://root:@127.0.0.1:3306/iomt_ids"
+    database_url: str = "mysql+pymysql://root:@127.0.0.1:3306/iomt_ids?charset=utf8mb4"
     redis_url: str = "redis://127.0.0.1:6379/0"
 
     jwt_secret_key: str = "change-me-to-a-random-secret"
