@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     mqtt_broker_host: str = "127.0.0.1"
     mqtt_broker_port: int = 1883
 
+    # Browser origins allowed to call this API. Needed as soon as the frontend
+    # is served from a different host than the backend — a Vercel deployment
+    # calling a backend elsewhere, for instance. Comma-separated.
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+
     # Retention. Detection and vitals volume grows without limit otherwise, and
     # keeping patient-linked telemetry longer than it is useful is exactly what
     # a data-protection review objects to. 0 disables pruning for that table.

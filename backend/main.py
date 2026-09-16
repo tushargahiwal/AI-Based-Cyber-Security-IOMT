@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from config import settings
@@ -68,6 +69,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+# Same-origin in development (Vite proxies /api/v1) and in the Docker setup
+# (nginx proxies it), so this only matters for a split deployment — the
+# frontend on one host, this API on another. Origins are listed rather than
+# wildcarded: an API that answers any origin is one any page can call with
+# a token it has stolen from somewhere else.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=False,  # auth is a Bearer header, not a cookie
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Content-Disposition"],  # the Excel export's filename
+)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(devices.router)

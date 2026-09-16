@@ -16,7 +16,9 @@ dist/
 backend/models/*.pkl
 backend/models/*.keras
 backend/models/*.h5
-data/raw/
+# data/raw/ is committed deliberately: the Attack Simulator replays this
+# capture, and without it a deployed instance has nothing to demonstrate.
+# It is 3.8 MB and publicly distributed for research.
 data/interim/
 data/processed/
 
