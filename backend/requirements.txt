@@ -61,3 +61,8 @@ httpx>=0.27
 # --- Deep learning ---
 tensorflow>=2.15
 openpyxl>=3.1
+
+# Explicit rather than transitive: pymysql verifies TiDB Cloud's certificate
+# against this bundle. Relying on another package to happen to pull it in is how
+# a working deployment turns into an SSL error after an unrelated version bump.
+certifi>=2024.2

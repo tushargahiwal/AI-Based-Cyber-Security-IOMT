@@ -24,8 +24,11 @@ RUN useradd --create-home --uid 1000 user
 
 # libgomp is what XGBoost and scikit-learn link against for OpenMP. Without it
 # the failure is an ImportError at runtime rather than an error at build time.
+# ca-certificates is not optional here: TiDB Cloud refuses a connection that is
+# not TLS-verified, and verification needs a trust store. Without it the failure
+# is an opaque SSL error that reads like a bad password.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libgomp1 curl \
+ && apt-get install -y --no-install-recommends libgomp1 curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
