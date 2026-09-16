@@ -27,3 +27,6 @@ database/mysqld_start.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Database dumps — these contain patient-linked data and must not be committed.
+backups/

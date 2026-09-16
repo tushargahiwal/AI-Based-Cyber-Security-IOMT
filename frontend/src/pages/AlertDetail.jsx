@@ -10,6 +10,7 @@ import {
   markAlertFalsePositive,
   commentOnAlert,
   applyRecommendation,
+  revertRecommendation,
   ENFORCING_ACTIONS,
 } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
@@ -220,10 +221,26 @@ export default function AlertDetail() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {rec.applied ? (
-                        <span className="flex items-center gap-1.5 text-xs text-emerald-700">
-                          <CheckCircleIcon className="h-3.5 w-3.5" />
-                          Applied {rec.applied_at ? new Date(rec.applied_at).toLocaleString() : ''}
-                        </span>
+                        <>
+                          <span className="flex items-center gap-1.5 text-xs text-emerald-700">
+                            <CheckCircleIcon className="h-3.5 w-3.5" />
+                            Applied {rec.applied_at ? new Date(rec.applied_at).toLocaleString() : ''}
+                          </span>
+                          {/* Putting a device back is the safe direction, so it is
+                              always one click — no confirmation stands in the way. */}
+                          <button
+                            onClick={() =>
+                              run(async () => {
+                                const { data } = await revertRecommendation(id, rec.id)
+                                setAppliedEffect(`Undone — ${data.effect}`)
+                              })
+                            }
+                            disabled={busy}
+                            className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                          >
+                            Undo
+                          </button>
+                        </>
                       ) : (
                         isOpen &&
                         canAck && (
@@ -249,7 +266,8 @@ export default function AlertDetail() {
               )}
               <p className="mt-3 text-xs text-slate-500">
                 Nothing here runs on its own. Applying one records who took it on, and for
-                isolate/block/revoke also carries it out.
+                isolate/block/revoke also carries it out — a quarantine lifts itself after 4 hours and a
+                block after 24, so a device cut off during a night shift is never left that way.
               </p>
             </Card>
           )}

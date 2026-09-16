@@ -222,7 +222,19 @@ export default function Layout() {
         <div className="mt-6 flex-1">
           <SidebarNav user={user} />
         </div>
-        <p className="px-3 pt-6 text-[10px] leading-relaxed text-slate-600">
+        {/* Stated where it cannot be missed. This system displays vitals and can
+            act on devices attached to patients; anyone using it has to know it is
+            not validated for clinical decisions. */}
+        <div className="mt-6 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            Research prototype
+          </p>
+          <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+            Not a medical device. Not validated for clinical decisions. Confirm every reading
+            from the bedside before acting on it.
+          </p>
+        </div>
+        <p className="px-3 pt-4 text-[10px] leading-relaxed text-slate-600">
           Five-stage detection pipeline
           <br />
           WUSTL-EHMS-2020

@@ -19,5 +19,25 @@ class Settings(BaseSettings):
     mqtt_broker_host: str = "127.0.0.1"
     mqtt_broker_port: int = 1883
 
+    # Retention. Detection and vitals volume grows without limit otherwise, and
+    # keeping patient-linked telemetry longer than it is useful is exactly what
+    # a data-protection review objects to. 0 disables pruning for that table.
+    retention_detections_days: int = 90
+    retention_vitals_days: int = 30
+    retention_audit_days: int = 365
+
+
+DEFAULT_JWT_SECRET = "change-me-to-a-random-secret"
 
 settings = Settings()
+
+# A deployment signing tokens with the published default is a deployment anyone
+# can forge an admin token for. In development that is a convenience; anywhere
+# else it is a hole, so the app refuses to start rather than run insecurely and
+# look fine.
+if settings.env != "development" and settings.jwt_secret_key == DEFAULT_JWT_SECRET:
+    raise RuntimeError(
+        f"JWT_SECRET_KEY is still the default while ENV={settings.env!r}. "
+        "Set it to a random value (e.g. `python -c \"import secrets; print(secrets.token_urlsafe(48))\"`) "
+        "before starting outside development."
+    )

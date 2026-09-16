@@ -105,3 +105,93 @@ The experiment also carries a leak guard, and it found one:
 was produced with one attacker host using a fixed MAC. Any model given that
 column scores 100% and has learned the attacker's network card. It is detected
 and dropped automatically — see `ml/engineered_features.py`.
+
+## Live capture (Module 2)
+
+```
+cd backend
+sudo ./venv/bin/python -m workers.sniffer --interface eth0     # live, needs root
+./venv/Scripts/python.exe -m workers.sniffer --pcap capture.pcap --dry-run
+```
+
+Assembles packets into bidirectional flows, builds the model's feature vector,
+and scores each closed flow through the same pipeline the API uses. Runs on a
+**mirror/SPAN port, never inline** — if it crashes, traffic to the ventilator is
+unaffected, because it never carried that traffic.
+
+32 of the 44 features come from packets, 8 from the vitals stream, and 4 (packet
+loss) are not measurable without TCP stream reassembly and are reported as
+absent rather than as zero.
+
+## Operations
+
+```
+python -m workers.retention --dry-run    # what the retention windows would delete
+python -m workers.backup create          # nightly dump, with a verify step
+python -m workers.benchmark --flows 200  # how much traffic this box can score
+```
+
+`workers/backup.py` and `workers/retention.py` are what make the incident record
+survivable and the data-retention window enforced rather than aspirational.
+
+## Before deploying anywhere real
+
+Read **[DEPLOYMENT.md](DEPLOYMENT.md)** — what is ready, what is not, and the
+phased path. Then **[RUNBOOK.md](RUNBOOK.md)** for on-call, failure modes and
+the compliance questions that are the hospital's to answer.
+
+Short version: this is ready for a demo, a lab, or a supervised passive pilot.
+It is **not** ready for live clinical use, and the calibration evidence in
+DEPLOYMENT.md explains why in one measurement.
+
+## Prevention (enforcement)
+
+Detection alone leaves the attack running. Enforcement stops it — **out-of-band**,
+so the appliance still never carries a packet. It instructs infrastructure that
+is already in the path, or puts a correct ARP binding back on the wire.
+
+| Actuator | What it does | Why it is safe |
+|---|---|---|
+| `arp_heal` | Broadcasts the registered MAC/IP binding | Reverses ARP spoofing without disconnecting anything |
+| `switch_port` | Shuts or re-VLANs the **attacker's** access port | The medical device stays exactly where it is |
+| `firewall` | Blocks the attacker upstream | A rule on kit already in the path |
+| `mqtt_revoke` | Stops a cloned client publishing | Surgical — no network change at all |
+
+`switch_port` and `firewall` run **your own command**, held in `system_config`.
+Every hospital's switch is different, and shipping an untested driver for each
+would mean shipping several that report success and do nothing.
+
+### The decision that matters
+
+**Who gets blocked is the dangerous question, not what.** For a
+man-in-the-middle the monitor is the *victim*: cutting it off does not stop the
+attacker, removes the patient from the central station, and leaves the attacker
+on the network — three failures from one click.
+
+So targets are chosen by role, never by direction:
+
+| Endpoint | Treatment |
+|---|---|
+| Registered medical device | Never acted on without explicit confirmation. Life-critical: stronger refusal, and the advice is to isolate the ward segment instead. |
+| Protected infrastructure (HIS, PACS, gateway — `enforcement.protected_hosts`) | Never blocked. Taking out the HIS is a bigger incident than most alerts. |
+| Everything else | The adversary. Actionable. |
+| Both ends known | No target is named, and the plan says why. |
+
+### Safety controls
+
+- **Dry run by default, per actuator.** A new deployment logs what it *would* do.
+- **A global kill switch** (`enforcement.enabled`), read on every action — one
+  call stops everything, no restart.
+- **Reversible and time-limited** — quarantines lift after 4 h, blocks after 24.
+- **Targets are validated** before reaching a command line. They come from
+  packets, so they are attacker-controlled; `shell=False`, and a target that
+  looks like an option is refused.
+- **Every action is audited** with the actuator, the target, and the reasoning
+  about who the adversary was.
+
+```
+GET  /api/v1/enforcement/status                    what is live vs rehearsing
+GET  /api/v1/enforcement/alerts/{id}/plan          what would be done, and to whom
+POST /api/v1/enforcement/alerts/{id}/execute       carry out one action
+POST /api/v1/enforcement/kill-switch               stop everything, now
+```

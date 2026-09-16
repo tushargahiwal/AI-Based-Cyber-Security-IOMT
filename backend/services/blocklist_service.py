@@ -3,14 +3,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from models.blocklist import BlocklistEntry
+from services import safety_service
 
 
 def list_entries(db: Session, *, entry_type: str | None = None, is_active: bool | None = None):
     query = db.query(BlocklistEntry)
     if entry_type:
         query = query.filter(BlocklistEntry.entry_type == entry_type)
-    if is_active is not None:
-        query = query.filter(BlocklistEntry.is_active == is_active)
+    if is_active is True:
+        # "Active" has to mean actually in force. expires_at was being written
+        # and never read, so a lapsed block still listed as active.
+        query = safety_service.active_blocklist_filter(query)
+    elif is_active is False:
+        query = query.filter(BlocklistEntry.is_active.is_(False))
     return query.order_by(BlocklistEntry.created_at.desc()).all()
 
 

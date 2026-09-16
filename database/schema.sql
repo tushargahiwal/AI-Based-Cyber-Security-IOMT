@@ -119,6 +119,9 @@ CREATE TABLE devices (
   status                    ENUM('online','offline','quarantined','maintenance') NOT NULL DEFAULT 'offline',
   trust_score                DECIMAL(5,2) NOT NULL DEFAULT 100.00,
   last_seen_at               DATETIME DEFAULT NULL,
+  -- Quarantine is time-limited by default: a life-critical device that is
+  -- cut off and then forgotten is a patient-safety incident of its own.
+  quarantined_until          DATETIME DEFAULT NULL,
   created_at                 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at                 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -478,7 +481,7 @@ CREATE TABLE alert_actions (
   id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   alert_id          BIGINT UNSIGNED NOT NULL,
   user_id           BIGINT UNSIGNED DEFAULT NULL,
-  action            ENUM('created','acknowledged','assigned','commented','escalated','mitigated','resolved','marked_false_positive','reopened') NOT NULL,
+  action            ENUM('created','acknowledged','assigned','commented','escalated','mitigated','reverted','resolved','marked_false_positive','reopened') NOT NULL,
   comment           TEXT,
   previous_status   VARCHAR(30) DEFAULT NULL,
   new_status        VARCHAR(30) DEFAULT NULL,

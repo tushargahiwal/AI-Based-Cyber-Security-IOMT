@@ -7,6 +7,7 @@ from schemas.alert import (
     AlertActionOut,
     ApplyRecommendationRequest,
     ApplyRecommendationResponse,
+    RevertRecommendationRequest,
     AlertDetailOut,
     AlertListResponse,
     AlertOut,
@@ -16,7 +17,7 @@ from schemas.alert import (
     MitigationRecommendationOut,
     ResolveRequest,
 )
-from services import alert_service, audit_service
+from services import alert_service, audit_service, safety_service
 
 router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
 
@@ -209,3 +210,74 @@ def apply_recommendation(
         effect=result["effect"],
         enforcing=result["enforcing"],
     )
+
+
+@router.post("/{alert_id}/recommendations/{recommendation_id}/revert",
+             response_model=ApplyRecommendationResponse)
+def revert_recommendation(
+    alert_id: int,
+    recommendation_id: int,
+    body: RevertRecommendationRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx: AuthContext = Depends(require_permission("alerts.ack")),
+):
+    """Undo a mitigation that was applied.
+
+    Undoing an enforcing action needs devices.quarantine, the same as applying
+    one — but there is deliberately no life-critical confirmation here. Putting
+    a ventilator back on the network is the safe direction; nothing should stand
+    between an operator and that.
+    """
+    rec = alert_service.get_recommendation(db, alert_id=alert_id, recommendation_id=recommendation_id)
+    if rec is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "recommendation not found on this alert")
+    if rec.action_type in alert_service.ENFORCING_ACTIONS:
+        if "*" not in ctx.permissions and "devices.quarantine" not in ctx.permissions:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"reverting '{rec.action_type}' changes device or network state: "
+                "missing permission devices.quarantine",
+            )
+
+    result = alert_service.revert_recommendation(
+        db, alert_id=alert_id, recommendation_id=recommendation_id,
+        actor_user_id=ctx.user.id, reason=body.reason,
+    )
+    audit_service.log(
+        db,
+        user_id=ctx.user.id,
+        action="REVERT_MITIGATION",
+        entity_type="mitigation_recommendation",
+        entity_id=recommendation_id,
+        new_value={"alert_id": alert_id, "action_type": result["recommendation"].action_type,
+                   "effect": result["effect"], "reason": body.reason},
+        ip_address=request.client.host if request.client else None,
+    )
+    return ApplyRecommendationResponse(
+        recommendation=_rec_to_out(result["recommendation"]),
+        alert=_to_out(result["alert"]),
+        effect=result["effect"],
+        enforcing=result["enforcing"],
+    )
+
+
+@router.post("/safety/release-expired")
+def release_expired_mitigations(
+    request: Request,
+    db: Session = Depends(get_db),
+    ctx: AuthContext = Depends(require_permission("devices.quarantine")),
+):
+    """Run the expiry sweep now instead of waiting for the timer.
+
+    The sweep already runs every minute inside the app; this is for an operator
+    who wants a device back immediately and for checking the mechanism works.
+    """
+    result = safety_service.release_expired(db)
+    if result["devices_released"] or result["blocklist_entries_expired"]:
+        audit_service.log(
+            db, user_id=ctx.user.id, action="RELEASE_EXPIRED",
+            entity_type="device", new_value=result,
+            ip_address=request.client.host if request.client else None,
+        )
+    return result

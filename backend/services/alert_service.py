@@ -15,7 +15,7 @@ from models.device import Device
 from models.mitigation_recommendation import MitigationRecommendation
 from models.patient_device_assignment import PatientDeviceAssignment
 from models.user import User
-from services import notification_service
+from services import notification_service, safety_service
 
 ALERT_SEVERITIES = {"medium", "high", "critical"}
 
@@ -387,6 +387,9 @@ def _blocklist(db: Session, *, alert: Alert, entry_type: str, value: str, actor_
         reason=f"Mitigation applied for {alert.alert_uid}",
         alert_id=alert.id,
         added_by=actor_user_id,
+        # Blocks lapse on their own. An indefinite block raised at 3am and never
+        # reviewed is how a device stays cut off for a week by accident.
+        expires_at=safety_service.block_deadline(),
     ))
 
 
@@ -420,7 +423,11 @@ def _apply_effect(db: Session, *, rec: MitigationRecommendation, alert: Alert,
         parts = []
         if device.status != "quarantined":
             device.status = "quarantined"
-            parts.append(f"quarantined {device.device_uid}")
+            device.quarantined_until = safety_service.quarantine_deadline()
+            parts.append(
+                f"quarantined {device.device_uid} until "
+                f"{device.quarantined_until:%H:%M} ({safety_service.QUARANTINE_HOURS}h)"
+            )
         ip = rec.target or device.ip_address
         if ip:
             _blocklist(db, alert=alert, entry_type="ip", value=ip, actor_user_id=actor_user_id)
@@ -475,3 +482,26 @@ def apply_recommendation(db: Session, *, alert_id: int, recommendation_id: int, 
     db.refresh(rec)
     db.refresh(alert)
     return {"recommendation": rec, "alert": alert, "effect": effect, "enforcing": enforcing}
+
+
+def revert_recommendation(db: Session, *, alert_id: int, recommendation_id: int,
+                          actor_user_id: int, reason: str | None = None) -> dict:
+    """Undo an applied mitigation.
+
+    Deliberately available on a resolved alert too: the mistake is often only
+    noticed after someone closed the ticket, and refusing to undo it then would
+    leave a device cut off with no route back through the UI.
+    """
+    alert = _get_or_404(db, alert_id)
+    rec = get_recommendation(db, alert_id=alert_id, recommendation_id=recommendation_id)
+    if rec is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "recommendation not found on this alert")
+    if not rec.applied:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "this recommendation has not been applied")
+
+    effect = safety_service.revert_mitigation(
+        db, recommendation=rec, alert=alert, actor_user_id=actor_user_id, reason=reason
+    )
+    db.refresh(alert)
+    return {"recommendation": rec, "alert": alert, "effect": effect,
+            "enforcing": rec.action_type in ENFORCING_ACTIONS}

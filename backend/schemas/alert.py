@@ -91,6 +91,13 @@ class ApplyRecommendationRequest(BaseModel):
     )
 
 
+class RevertRecommendationRequest(BaseModel):
+    reason: Optional[str] = Field(
+        default=None, max_length=500,
+        description="why it is being undone — goes on the alert timeline",
+    )
+
+
 class ApplyRecommendationResponse(BaseModel):
     recommendation: MitigationRecommendationOut
     alert: AlertOut

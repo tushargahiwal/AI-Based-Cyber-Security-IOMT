@@ -260,6 +260,12 @@ export const applyRecommendation = (alertId, recId, confirmLifeCritical = false)
     confirm_life_critical: confirmLifeCritical,
   })
 
+// Undo an applied mitigation — releases the device and lifts the blocks it
+// raised. Available on resolved alerts too: the mistake is usually spotted
+// after the ticket was closed.
+export const revertRecommendation = (alertId, recId, reason) =>
+  client.post(`/alerts/${alertId}/recommendations/${recId}/revert`, { reason })
+
 // Action types that actually change device or network state when applied.
 // Keep in sync with ENFORCING_ACTIONS in backend/services/alert_service.py.
 export const ENFORCING_ACTIONS = ['isolate_source', 'block_ip', 'revoke_mqtt_client']

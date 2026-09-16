@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -6,6 +7,8 @@ from sqlalchemy import text
 
 from config import settings
 from database import engine
+from database import SessionLocal
+from services import safety_service
 from services.broadcast import broadcaster
 from services.security import decode_access_token
 from routers import (
@@ -17,6 +20,7 @@ from routers import (
     datasets,
     detections,
     devices,
+    enforcement,
     ml_models,
     patients,
     protocols,
@@ -30,12 +34,37 @@ from routers import (
     vitals,
 )
 
+async def _safety_sweep() -> None:
+    """Lifts quarantines and blocks that have reached their deadline.
+
+    Runs for the life of the process. A failure here must never take the API
+    down with it, so the loop logs and carries on — but a device staying
+    quarantined is the failure that matters, hence the log is a warning.
+    """
+    while True:
+        await asyncio.sleep(safety_service.SWEEP_SECONDS)
+        try:
+            db = SessionLocal()
+            try:
+                await asyncio.to_thread(safety_service.release_expired, db)
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logging.getLogger(__name__).warning("safety sweep failed", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Detections are scored in FastAPI's sync threadpool, so the broadcaster
     # needs a handle on the loop to schedule sends from off-thread.
     broadcaster.bind_loop(asyncio.get_running_loop())
-    yield
+    sweep = asyncio.create_task(_safety_sweep())
+    try:
+        yield
+    finally:
+        sweep.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -58,6 +87,7 @@ app.include_router(vitals.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(simulation.router)
+app.include_router(enforcement.router)
 
 
 @app.websocket("/api/v1/ws")
