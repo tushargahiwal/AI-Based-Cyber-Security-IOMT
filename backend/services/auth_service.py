@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -18,6 +19,73 @@ from services.security import (
 
 MAX_FAILED_LOGINS = 5
 
+# Holding either of these makes an account able to create other privileged
+# accounts, which is what "an admin already exists" has to mean here.
+ADMIN_PERMISSIONS = ("*", "users.manage")
+
+
+def _an_admin_exists(db: Session) -> bool:
+    """Whether any account can already administer the system.
+
+    Deliberately not "are there any users at all". If it were, anyone could
+    register a throwaway viewer on a public deployment and permanently lock the
+    real owner out of creating their own admin — a denial of bootstrap that costs
+    an attacker nothing. Gating on an ADMIN existing closes that: a viewer
+    signing up changes nothing, and once a real admin is in place the bootstrap
+    token stops working on its own.
+    """
+    admin_roles = [
+        role.id for role in db.query(Role).all()
+        if any(p in (role.permissions or []) for p in ADMIN_PERMISSIONS)
+    ]
+    if not admin_roles:
+        return False
+    return db.query(User).filter(
+        User.role_id.in_(admin_roles), User.deleted_at.is_(None)
+    ).count() > 0
+
+
+def _authorise_privileged_registration(db: Session, *, requesting_permissions: list | None,
+                                       bootstrap_token: str | None) -> None:
+    """Decides whether this caller may create a non-viewer account.
+
+    Two ways through: an already-authenticated admin, or — only while no admin
+    exists yet — the deployment's bootstrap token.
+    """
+    if requesting_permissions and any(p in requesting_permissions for p in ADMIN_PERMISSIONS):
+        return
+
+    if _an_admin_exists(db):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "only an admin can register a user with a role other than 'viewer'",
+        )
+
+    # No admin yet. "The table is empty so this one becomes admin" is a race
+    # anyone who finds the URL can win, and a free Hugging Face Space is public
+    # by definition — so the first admin has to prove it came from whoever holds
+    # the deployment's secrets.
+    expected = settings.bootstrap_token
+    if not expected:
+        # Development stays convenient; anywhere else an unset token means no
+        # privileged bootstrap at all, which fails closed rather than silently
+        # leaving the door open.
+        if settings.env != "development":
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "BOOTSTRAP_TOKEN is not configured, so the first admin cannot be created "
+                "through this endpoint. Set it in the deployment's secrets and retry.",
+            )
+        return
+
+    # compare_digest, not ==, so a wrong guess cannot be narrowed down by timing
+    # how long the comparison took.
+    if not bootstrap_token or not secrets.compare_digest(bootstrap_token, expected):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "creating the first admin requires a valid X-Bootstrap-Token header",
+        )
+
 
 def register_user(
     db: Session,
@@ -33,20 +101,12 @@ def register_user(
     city: str | None,
     state: str | None,
     requesting_permissions: list | None,
+    bootstrap_token: str | None = None,
 ) -> User:
-    is_first_user = db.query(User).count() == 0
-
-    # Self-registration always lands as the requested role only if the caller is an
-    # already-authenticated admin, or this is the very first account (bootstrap).
-    # Otherwise force the least-privileged role to prevent privilege escalation.
-    if role_name != "viewer" and not is_first_user:
-        if not requesting_permissions or (
-            "*" not in requesting_permissions and "users.manage" not in requesting_permissions
-        ):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "only an admin can register a user with a role other than 'viewer'",
-            )
+    if role_name != "viewer":
+        _authorise_privileged_registration(
+            db, requesting_permissions=requesting_permissions, bootstrap_token=bootstrap_token
+        )
 
     role = db.query(Role).filter(Role.name == role_name).first()
     if role is None:

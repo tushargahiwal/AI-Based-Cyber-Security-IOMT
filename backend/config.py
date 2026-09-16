@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # calling a backend elsewhere, for instance. Comma-separated.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Required to create the FIRST account with a privileged role. Without it,
+    # "the users table is empty so this one becomes admin" is a race that
+    # anyone who finds a public deployment can win. Leave empty in development
+    # — the guard only binds when ENV is something else.
+    bootstrap_token: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Header, Request, status
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -32,6 +32,7 @@ def _to_user_out(user, role: str, permissions: list) -> UserOut:
 def register(
     body: RegisterRequest,
     request: Request,
+    x_bootstrap_token: str | None = Header(default=None, alias="X-Bootstrap-Token"),
     db: Session = Depends(get_db),
     current_user: AuthContext | None = Depends(get_optional_current_user),
 ):
@@ -48,6 +49,7 @@ def register(
         city=body.city,
         state=body.state,
         requesting_permissions=current_user.permissions if current_user else None,
+        bootstrap_token=x_bootstrap_token,
     )
     audit_service.log(
         db,
